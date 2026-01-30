@@ -1,0 +1,1120 @@
+# Core
+import os
+import json
+import re
+import time
+import asyncio
+import logging
+import traceback
+from datetime import datetime
+
+# Config
+from dotenv import load_dotenv
+from config import get_config
+config = get_config()
+
+# LLM
+from openai import OpenAI
+
+# Utilities
+from metric_extractor import MetricExtractor
+
+# Web Framework
+from fastapi import FastAPI, HTTPException
+from pydantic import BaseModel
+import uvicorn
+
+# from langsmith import traceable
+
+
+# FastAPI Models
+class TenKRequest(BaseModel):
+    ticker: str
+    start_year: int
+    end_year: int
+
+# FastAPI App
+app = FastAPI(title="10-K and Metics Data Ingestor Microservice", version="1.0.0")
+
+
+def create_run_folder():
+    """Create a timestamped folder for this run's JSON files."""
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    run_folder = f"src/app/data_injestor/metrics_storage/run_{timestamp}"
+    os.makedirs(run_folder, exist_ok=True)
+    return run_folder
+
+
+# @traceable(name="unstructured.tenK_data_injestor", metadata={"component": "data_ingestor"})
+async def tenK_data_injestor(file_path=None, ticker=None, start_year=2011, end_year=2025):
+    
+# @traceable(name="unstructured.tenK_data_injestor", metadata={"component": "data_ingestor"})
+async def tenK_data_injestor(file_path=None, ticker=None, start_year=2011, end_year=2025):
+
+    def get_allowed_nodes(self):
+        """Return the list of allowed nodes for the transformer."""
+        return [
+            # Item 1: Business
+            "Company history and development",
+            "Description of business segments",
+            "Products and services offered",
+            "Markets and customers",
+            "Competition and competitive position",
+            "Sales and marketing strategies",
+            "Raw materials and suppliers",
+            "Intellectual property",
+            "Seasonality of business",
+            "Government regulations",
+            "Number of employees",
+            "Available information",
+            "Business risks",
+            "Financial risks",
+            "Legal and regulatory risks",
+            "Market risks",
+            "Operational risks",
+            "Cybersecurity risks",
+            "Environmental risks",
+            "Risks related to intellectual property",
+            "International operation risks",
+            "Competition risks",
+            "Unresolved staff comments",
+            "Cybersecurity risk management processes",
+            "Board oversight of cybersecurity",
+            "Material cybersecurity incidents",
+            "Real estate owned or leased",
+            "Manufacturing facilities",
+            "Office locations",
+            "Distribution centers",
+            "Storage facilities",
+            "Operational properties",
+            "Pending lawsuits",
+            "Government investigations",
+            "Regulatory actions",
+            "Environmental proceedings",
+            "Patent disputes",
+            "Safety violations",
+            "Safety incidents",
+            "Stock price history",
+            "Trading volume",
+            "Stock exchange",
+            "Number of shareholders",
+            "Dividend history",
+            "Dividend policy",
+            "Stock performance graph",
+            "Unregistered securities",
+            "Share repurchase programs",
+            "Financial results overview",
+            "Year-over-year comparisons",
+            "Revenue analysis by segment",
+            "Expense analysis",
+            "Liquidity analysis",
+            "Capital resources",
+            "Contractual obligations",
+            "Off-balance sheet arrangements",
+            "Critical accounting policies",
+            "Forward-looking statements",
+            "Market risks discussion",
+            "Impact of inflation",
+            "Recent accounting pronouncements",
+            "Interest rate risk",
+            "Foreign currency exchange risk",
+            "Commodity price risk",
+            "Equity price risk",
+            "Credit risk",
+            "Sensitivity analysis",
+            "Consolidated Balance Sheets",
+            "Consolidated Income Statements",
+            "Consolidated Comprehensive Income",
+            "Consolidated Cash Flow Statements",
+            "Consolidated Shareholders Equity",
+            "Accounting policies",
+            "Revenue recognition policies",
+            "Business combinations",
+            "Acquisitions",
+            "Discontinued operations",
+            "Earnings per share",
+            "Inventory details",
+            "Property plant and equipment",
+            "Goodwill",
+            "Intangible assets",
+            "Debt details",
+            "Leases",
+            "Income taxes",
+            "Employee benefit plans",
+            "Pensions",
+            "401k plans",
+            "Stock-based compensation",
+            "Commitments and contingencies",
+            "Segment information",
+            "Fair value measurements",
+            "Derivatives",
+            "Hedging activities",
+            "Related party transactions",
+            "Subsequent events",
+            "Quarterly financial data",
+            "Auditing firm changes",
+            "Disagreements with auditors",
+            "Internal controls assessment",
+            "Auditor report on controls",
+            "Changes in internal controls",
+            "Disclosure controls",
+            "Foreign audit inspection issues",
+            "Director names and backgrounds",
+            "Executive officer information",
+            "Board committee composition",
+            "Audit committee expert",
+            "Code of ethics",
+            "Shareholder nominations",
+            "Director independence",
+            "Family relationships",
+            "Summary compensation table",
+            "Plan-based awards",
+            "Outstanding equity awards",
+            "Option exercises",
+            "Stock vested",
+            "Pension benefits",
+            "Non-qualified deferred compensation",
+            "Employment contracts",
+            "Severance agreements",
+            "Change-in-control agreements",
+            "Compensation discussion and analysis",
+            "Compensation committee report",
+            "CEO pay ratio",
+            "Pay versus performance",
+            "Principal shareholders",
+            "Director ownership",
+            "Executive ownership",
+            "Equity compensation plan info",
+            "Securities authorized for issuance",
+            "Related party transactions",
+            "Business dealings with executives",
+            "Director independence determination",
+            "Audit fees",
+            "Audit-related fees",
+            "Tax fees",
+            "Other fees",
+            "Pre-approval policies",
+            "Articles of Incorporation",
+            "Bylaws",
+            "Rights of security holders",
+            "Material contracts",
+            "Employment agreements",
+            "Compensation plans",
+            "Credit agreements",
+            "Debt instruments",
+            "Subsidiaries list",
+            "Auditor consent letter",
+            "Power of attorney",
+            "CEO CFO certifications",
+            "Code of ethics document",
+            "Financial statement schedules",
+            "Form 10-K summary",
+        ]
+
+    def split_csv_by_tokens(self, csv_path, col_name=None, max_tokens=15000, encoding_name="cl100k_base"):
+        """Split a CSV (single column) OR TXT (line-per-row) into token-bounded chunks.
+
+        Backward compatible:
+        - If input is a .csv file, behavior stays the same: read first column and treat
+          each cell as one "row".
+        - If input is a .txt file, each line is treated as one "row".
+        """
+
+        path_str = str(csv_path)
+        ext = os.path.splitext(path_str)[1].lower()
+
+        print("Starting splitting input into chunks ....")
+
+        # Build an iterable of row texts
+        if ext == ".txt":
+            # Each non-empty line = row
+            with open(path_str, "r", encoding="utf-8", errors="ignore") as f:
+                values = [ln.strip() for ln in f.read().splitlines()]
+            values = [v for v in values if v != ""]
+        else:
+            # Default: CSV
+            df = pd.read_csv(path_str)
+            if col_name is None:
+                col_name = df.columns[0]
+            values = [str(v) for v in df[col_name].tolist()]
+
+        encoding = tiktoken.get_encoding(encoding_name)
+        chunks = []
+        current_chunk = []
+        current_tokens = 0
+
+        for text in values:
+            token_count = len(encoding.encode(text))
+
+            if current_tokens + token_count > max_tokens and current_chunk:
+                chunks.append("\n".join(current_chunk))
+                current_chunk = []
+                print(f"Chunk created with {current_tokens} tokens")
+                current_tokens = 0
+
+            current_chunk.append(text)
+            current_tokens += token_count
+
+        if current_chunk:
+            chunks.append("\n".join(current_chunk))
+
+        print("Splitting into chunks Completed !")
+        return chunks
+
+
+
+    # @traceable(name="unstructured.process_chunk", metadata={"component": "data_ingestor", "stage": "process_chunk"})
+    def _process_chunk_sync(self, chunk):
+        """
+        Synchronous function to process a chunk with token tracking.
+        This runs in a thread pool to properly capture callback data.
+        """
+        doc = Document(page_content=chunk)
+        
+        with get_openai_callback() as cb:
+            graph_document = self.transformer.convert_to_graph_documents([doc])[0]
+            
+            # Return both the graph document and token stats
+            return {
+                'graph_document': graph_document,
+                'total_tokens': cb.total_tokens,
+                'prompt_tokens': cb.prompt_tokens,
+                'completion_tokens': cb.completion_tokens,
+                'total_cost': cb.total_cost,
+                'successful_requests': cb.successful_requests
+            }
+
+
+
+    # @traceable(name="unstructured.convert_to_graph_documents", metadata={"component": "data_ingestor"})
+    async def convert_to_graph_documents(self, chunks, max_concurrent=20, max_retries=3, backoff_base=1.0, backoff_factor=2.0):
+        """
+        Convert text chunks to graph documents asynchronously with concurrency control and token tracking.
+        
+        Args:
+            chunks: List of text chunks to process
+            max_concurrent: Maximum number of concurrent processing operations (default: 20)
+        
+        Returns:
+            List of graph documents
+        """
+        print(f"⏳ Starting async conversion of {len(chunks)} chunks to Graph Documents (max {max_concurrent} concurrent)...")
+        start_time = time.time()
+
+        async def process_chunk(chunk, index):
+            """Process a single chunk with token tracking and return the graph document, with retries."""
+            attempt = 1
+            while attempt <= max_retries:
+                try:
+                    loop = asyncio.get_event_loop()
+                    
+                    # Run the synchronous processing in thread pool executor
+                    result = await loop.run_in_executor(None, self._process_chunk_sync, chunk)
+                    
+                    # Update token usage (thread-safe)
+                    async with self.lock:
+                        self.total_tokens_used += result['total_tokens']
+                        self.total_prompt_tokens += result['prompt_tokens']
+                        self.total_completion_tokens += result['completion_tokens']
+                        self.total_cost += result['total_cost']
+                        self.successful_requests += result['successful_requests']
+                    
+                    retry_note = f" (after {attempt} attempt{'s' if attempt > 1 else ''})" if attempt > 1 else ""
+                    print(f"✓ Processed chunk {index + 1}/{len(chunks)}{retry_note} | "
+                          f"Tokens: {result['total_tokens']} "
+                          f"(prompt: {result['prompt_tokens']}, completion: {result['completion_tokens']}) | "
+                          f"Cost: ${result['total_cost']:.6f}")
+                    
+                    return result['graph_document']
+                except Exception as e:
+                    if attempt < max_retries:
+                        wait = backoff_base * (backoff_factor ** (attempt - 1))
+                        jitter = wait * (0.1 * random.random())
+                        total_wait = wait + jitter
+                        print(f"⚠️ Retry {attempt}/{max_retries - 1} failed for chunk {index + 1}: {str(e)}. Retrying in {total_wait:.2f}s...")
+                        await asyncio.sleep(total_wait)
+                        attempt += 1
+                        continue
+                    else:
+                        print(f"✗ Error processing chunk {index + 1} after {max_retries} attempts: {str(e)}")
+                        return None
+
+        # Create semaphore to limit concurrency
+        semaphore = asyncio.Semaphore(max_concurrent)
+
+        async def process_with_semaphore(chunk, index):
+            """Process chunk with semaphore control."""
+            async with semaphore:
+                return await process_chunk(chunk, index)
+
+        # Create tasks for all chunks
+        tasks = []
+        for idx, chunk in enumerate(chunks):
+            task = process_with_semaphore(chunk, idx)
+            tasks.append(task)
+
+        # Execute all tasks concurrently (with semaphore limiting)
+        graph_documents = await asyncio.gather(*tasks)
+
+        # Filter out any None results from errors
+        graph_documents = [doc for doc in graph_documents if doc is not None]
+
+        end_time = time.time()
+        elapsed_time = end_time - start_time
+        minutes = int(elapsed_time // 60)
+        seconds = int(elapsed_time % 60)
+        
+        print("\n" + "=" * 70)
+        print("📊 TOKEN USAGE SUMMARY")
+        print("=" * 70)
+        print(f"Total Tokens Used:        {self.total_tokens_used:,}")
+        print(f"  ├─ Prompt Tokens:       {self.total_prompt_tokens:,}")
+        print(f"  └─ Completion Tokens:   {self.total_completion_tokens:,}")
+        print(f"Total Cost (USD):         ${self.total_cost:.6f}")
+        print(f"Successful API Requests:  {self.successful_requests}")
+        print(f"Chunks Processed:         {len(graph_documents)}/{len(chunks)}")
+        print(f"Processing Time:          {minutes} min {seconds} sec")
+        if graph_documents:
+            print(f"Avg Tokens per Chunk:     {self.total_tokens_used / len(graph_documents):.1f}")
+            print(f"Avg Cost per Chunk:       ${self.total_cost / len(graph_documents):.6f}")
+        print("=" * 70 + "\n")
+        
+        return graph_documents
+
+
+
+
+    def get_token_usage_stats(self):
+        """
+        Get current token usage statistics.
+        
+        Returns:
+            dict: Token usage statistics
+        """
+        return {
+            "total_tokens": self.total_tokens_used,
+            "prompt_tokens": self.total_prompt_tokens,
+            "completion_tokens": self.total_completion_tokens,
+            "total_cost_usd": round(self.total_cost, 6),
+            "successful_requests": self.successful_requests
+        }
+
+    def reset_token_stats(self):
+        """Reset token usage statistics."""
+        self.total_tokens_used = 0
+        self.total_prompt_tokens = 0
+        self.total_completion_tokens = 0
+        self.total_cost = 0.0
+        self.successful_requests = 0
+
+
+    def save_graph_output(self, graph_documents: List, output_dir: str = "app/data_injestor/graph_details"):
+        """Save graph documents into clean, structured text files"""
+        print(f"Starting saving graph_documents ...")
+        output_dir = f"{output_dir}/{self.ticker}/{self.year}"
+        os.makedirs(output_dir, exist_ok=True)
+        
+        for idx, gdoc in enumerate(graph_documents, start=1):
+            file_path = os.path.join(output_dir, f"chunk_{idx}.txt")
+
+            try:
+                with open(file_path, "w", encoding="utf-8") as f:
+                    f.write(f"==== GRAPH DOCUMENT {idx} ====\n\n")
+
+                    # NODES SECTION
+                    f.write("🟩 NODES:\n")
+                    if hasattr(gdoc, "nodes") and gdoc.nodes:
+                        for n_idx, node in enumerate(gdoc.nodes, start=1):
+                            f.write(f"\n-- Node {n_idx} --\n")
+                            f.write(f"ID: {node.id}\n")
+                            f.write(f"Type: {node.type}\n")
+
+                            if hasattr(node, "properties") and node.properties:
+                                f.write("Properties:\n")
+                                for k, v in node.properties.items():
+                                    f.write(f"  - {k}: {v}\n")
+                            else:
+                                f.write("Properties: None\n")
+                    else:
+                        f.write("No nodes found.\n")
+
+                    f.write("\n" + "=" * 60 + "\n")
+
+                    # RELATIONSHIPS SECTION
+                    f.write("\n🟦 RELATIONSHIPS:\n")
+                    if hasattr(gdoc, "relationships") and gdoc.relationships:
+                        for r_idx, rel in enumerate(gdoc.relationships, start=1):
+                            f.write(f"\n-- Relationship {r_idx} --\n")
+                            f.write(f"Source: {rel.source_id}\n")
+                            f.write(f"Target: {rel.target_id}\n")
+                            f.write(f"Type: {rel.type}\n")
+
+                            if hasattr(rel, "properties") and rel.properties:
+                                f.write("Properties:\n")
+                                for k, v in rel.properties.items():
+                                    f.write(f"  - {k}: {v}\n")
+                            else:
+                                f.write("Properties: None\n")
+                    else:
+                        f.write("No relationships found.\n")
+
+                    f.write("\n" + "=" * 60 + "\n")
+
+                    # SOURCE SECTION
+                    f.write("\n📄 SOURCE CONTENT:\n")
+                    if hasattr(gdoc, "source") and hasattr(gdoc.source, "page_content"):
+                        f.write(f"{gdoc.source.page_content.strip()}\n")
+                    else:
+                        f.write("No source content found.\n")
+
+                #print(f"✓ Saved structured graph to {file_path}")
+                print(f"graph documents saving is completed !")
+
+            except Exception as e:
+                print(f"✗ Error saving {file_path}: {e}")
+
+    def create_constraints_and_indexes(self, kg):
+        """Create necessary constraints and indexes"""
+        print("Creating constraints and indexes...")
+
+        # Create uniqueness constraint for chunks
+        kg.query("""
+        CREATE CONSTRAINT unique_chunk IF NOT EXISTS 
+            FOR (c:Chunk) REQUIRE c.chunkId IS UNIQUE
+        """)
+
+        # Create uniqueness constraint for metrics
+        kg.query("""
+        CREATE CONSTRAINT unique_metric IF NOT EXISTS 
+            FOR (m:Metric) REQUIRE m.id IS UNIQUE
+        """)
+
+        # Create vector index for text embeddings
+        kg.query("""
+        CREATE VECTOR INDEX `form_10k_chunks` IF NOT EXISTS
+            FOR (c:Chunk) ON (c.textEmbedding) 
+            OPTIONS { indexConfig: {
+                `vector.dimensions`: 1536,
+                `vector.similarity_function`: 'cosine'    
+            }}
+        """)
+
+        print("Constraints and indexes created successfully")
+
+    
+    def restructuring_graph_documents(self, graph_documents, ticker, year):
+        """
+        Convert LangChain graph_documents into a single Restructured_Graph_Documents dictionary.
+        
+        Args:
+            graph_documents (list): List of graph documents from LLMGraphTransformer.
+            ticker (str): Ticker of the company.
+            year (int): Year to include in the document.
+
+        Returns:
+            dict: Restructured graph documents dictionary with nodes grouped by type.
+            
+        """
+        print(f"Starting Restructuring Graph Documents... Total graph documents: {len(graph_documents)}")
+        for i, gdoc in enumerate(graph_documents):
+            print(f"Graph document {i+1}: {len(gdoc.nodes)} nodes, {len(gdoc.relationships)} relationships")
+        
+        Restructured_Graph_Documents = {"ticker": ticker, "year": year}
+        
+        for gdoc in graph_documents:
+            for node in gdoc.nodes:
+                node_type = node.type
+                # Initialize list for this node type if not exists
+                if node_type not in Restructured_Graph_Documents:
+                    Restructured_Graph_Documents[node_type] = []
+                
+                # Create node entry with node_id and properties
+                node_entry = {
+                    "node_id": node.id,  # ADD THIS: Include node ID
+                    "properties": node.properties if hasattr(node, "properties") and node.properties else {}
+                }
+                
+                Restructured_Graph_Documents[node_type].append(node_entry)
+        
+        print("Restructuring Graph Documents is Completed!")
+        return Restructured_Graph_Documents
+
+
+
+
+    # @traceable(name="neo4j.create_or_extend_tenk_chunk", metadata={"component": "data_ingestor"})
+    def create_or_extend_tenk_chunk(self, Restrctured_Graph_Documents):
+        """
+        Create or merge a TenKChunk node in Neo4j.
+        If a node with the same ticker AND year exists, append new attributes to existing ones.
+        Otherwise, create a new node.
+        All properties are stored directly on the node (not in a 'data' JSON field).
+        
+        Args:
+            Restrctured_Graph_Documents (dict): Dictionary containing TenKChunk node data
+            
+        Returns:
+            dict: Result information including whether node was created or merged
+        """
+        print("Starting Creating TenKChunk nodes...")
+        ticker = Restrctured_Graph_Documents.get("ticker")
+        year = Restrctured_Graph_Documents.get("year")
+        
+        if not ticker:
+            raise ValueError("ticker is required in tenk_chunk_data")
+        if not year:
+            raise ValueError("year is required in tenk_chunk_data")
+
+        with self.driver.session() as session:
+            
+            #print("starting ...")
+            # Check if node exists with BOTH ticker AND year
+            check_query = """
+            MATCH (chunk:TenKChunk {ticker: $ticker, year: $year})
+            RETURN chunk
+            """
+            result = session.run(check_query, ticker=ticker, year=year)
+            existing_node = result.single()
+
+            if existing_node:
+                
+                # for now not to inject duplicates 
+                print("node already exist ...")
+                return True
+                # Node exists - merge new properties
+                existing_data = dict(existing_node["chunk"])
+                current_data = existing_data.copy()
+                
+                # Merge new keys with existing ones
+                for key, value in Restrctured_Graph_Documents.items():
+                    if key in ["ticker", "year"]:
+                        continue  # skip these base properties
+                    
+                    if key in current_data:
+                        # If both are lists, extend the existing list
+                        if isinstance(current_data[key], str) and isinstance(value, list):
+                            data_list = json.loads(current_data[key])
+                            data_list.extend(value)
+                            current_data[key] = json.dumps(data_list)
+                            #print("in here extending ..")
+                        else:
+                            pass
+                            #print("diferat ..")
+                    else:
+                        # New property, add it
+                        current_data[key] = value
+                        #print("in New property, add it ..")
+
+                # Build SET clause dynamically for all properties
+                set_clauses = []
+                params = {"ticker": ticker, "year": year}
+                
+                for key, value in current_data.items():
+                    if key not in ["ticker", "year"]:
+                        # Convert lists/dicts to JSON strings for storage
+                        if isinstance(value, (list, dict)):
+                            param_key = f"prop_{key.replace(' ', '_').replace('-', '_')}"
+                            params[param_key] = json.dumps(value)
+                            set_clauses.append(f"chunk.`{key}` = ${param_key}")
+                        else:
+                            param_key = f"prop_{key.replace(' ', '_').replace('-', '_')}"
+                            params[param_key] = value
+                            set_clauses.append(f"chunk.`{key}` = ${param_key}")
+                
+                set_clauses.append("chunk.updatedAt = datetime()")
+                set_clause_str = ", ".join(set_clauses)
+                
+                update_query = f"""
+                MATCH (chunk:TenKChunk {{ticker: $ticker, year: $year}})
+                SET {set_clause_str}
+                RETURN chunk, 'merged' as action
+                """
+                result = session.run(update_query, **params)
+                
+            else:
+                #print("creating new ...")
+                # Node doesn't exist - create new one with all properties
+                params = {"ticker": ticker, "year": year}
+                set_clauses = ["chunk.ticker = $ticker", "chunk.year = $year"]
+                
+                for key, value in Restrctured_Graph_Documents.items():
+                    if key not in ["ticker", "year"]:
+                        # Convert lists/dicts to JSON strings for storage
+                        if isinstance(value, (list, dict)):
+                            param_key = f"prop_{key.replace(' ', '_').replace('-', '_')}"
+                            params[param_key] = json.dumps(value)
+                            set_clauses.append(f"chunk.`{key}` = ${param_key}")
+                        else:
+                            param_key = f"prop_{key.replace(' ', '_').replace('-', '_')}"
+                            params[param_key] = value
+                            set_clauses.append(f"chunk.`{key}` = ${param_key}")
+                
+                set_clauses.append("chunk.createdAt = datetime()")
+                set_clauses.append("chunk.updatedAt = datetime()")
+                set_clause_str = ", ".join(set_clauses)
+                
+                create_query = f"""
+                CREATE (chunk:TenKChunk)
+                SET {set_clause_str}
+                RETURN chunk, 'created' as action
+                """
+                result = session.run(create_query, **params)
+
+            record = result.single()
+            if record:
+                print("TenKChunk Nodes Creation is Completed !")
+                return {
+                    "success": True,
+                    "action": record["action"],
+                    "ticker": ticker,
+                    "year": year,
+                    "node": dict(record["chunk"])
+                }
+            
+            return {"success": False}
+    
+    # @traceable(name="neo4j.create_company_tenk_relationship", metadata={"component": "data_ingestor"})
+    def create_company_tenk_relationship(self, ticker, year=None):
+        """
+        Create HAS_TENK_DATA relationship from Company node to TenKChunk node(s).
+        
+        Args:
+            ticker (str): ticker the company (must match both Company.ticker and TenKChunk.ticker)
+            year (int, optional): Specific year. If None, creates relationships for all years.
+            
+        Returns:
+            dict: Result information including number of relationships created
+        """
+        print("Creating Company vs TenKChunk relationships ...")
+        with self.driver.session() as session:
+
+            query = """
+            MATCH (c:Company {ticker: $ticker})
+            MATCH (t:TenKChunk {ticker: $ticker, year: $year})
+            MERGE (c)-[r:HAS_TENK_DATA]->(t)
+            SET r.createdAt = CASE WHEN r.createdAt IS NULL THEN datetime() ELSE r.createdAt END
+            SET r.updatedAt = datetime()
+            RETURN count(r) as relationshipsCreated
+            """
+            result = session.run(query, ticker=ticker, year=year)
+            record = result.single()
+            if record:
+                print("Company vs TenKChunk relationships creation completed !")
+                return {
+                    "success": True,
+                    "ticker": ticker,
+                    "year": year,
+                    "relationshipsCreated": record["relationshipsCreated"]
+                }
+            return {
+                "success": False,
+                "message": "No matching Company or TenKChunk nodes found"
+            }
+    
+    
+    def tenk_chunk_exists(self):
+        """Check if a TenKChunk exists for the manager's ticker and year."""
+        with self.driver.session() as session:
+            query = """
+            MATCH (chunk:TenKChunk {ticker: $ticker, year: $year})
+            RETURN count(chunk) > 0 as exists
+            """
+            result = session.run(query, ticker=self.ticker, year=self.year)
+            record = result.single()
+            return bool(record and record["exists"])
+
+
+    def number_of_properties_except_ticker_and_year(self):
+        """Return the number of properties in TenKChunk node except ticker and year."""
+        with self.driver.session() as session:
+            query = """
+            MATCH (chunk:TenKChunk {ticker: $ticker, year: $year})
+            WITH [k IN keys(chunk) WHERE k <> 'ticker' AND k <> 'year'] AS filtered_keys
+            RETURN size(filtered_keys) AS property_count
+            """
+            result = session.run(query, ticker=self.ticker, year=self.year)
+            record = result.single()
+            return record["property_count"] if record else 0
+    
+
+    def delete_chunk(self):
+        """Delete the TenKChunk node with the given ticker and year."""
+        with self.driver.session() as session:
+            query = """
+            MATCH (chunk:TenKChunk {ticker: $ticker, year: $year})
+            DETACH DELETE chunk
+            RETURN true AS deleted
+            """
+            result = session.run(query,ticker=self.ticker,year=self.year)
+            record = result.single()
+            return bool(record and record["deleted"])
+
+
+    def ensure_year_integer(self):
+        """Ensure existing TenKChunk.year is stored as integer for this manager's ticker/year."""
+        with self.driver.session() as session:
+            query = """
+            MATCH (t:TenKChunk {ticker: $ticker})
+            WHERE toString(t.year) = $year_str OR t.year = $year_int
+            SET t.year = toInteger(t.year)
+            RETURN count(t) AS updated
+            """
+            session.run(query, ticker=self.ticker, year_str=str(self.year), year_int=self.year)
+
+    def close(self):
+        """Close Neo4j connection"""
+        self.driver.close()
+
+
+    def create_metric_nodes(self, metrics_data: dict):
+        """
+        Create FinancialMetrics nodes in Neo4j from extracted metrics data.
+        
+        Args:
+            metrics_data: Dictionary with 'metrics' key containing metric name-value pairs
+            
+        Returns:
+            dict: Result information about created nodes
+        """
+        print("Creating FinancialMetrics node in Neo4j...")
+        
+        metrics = metrics_data.get("metrics", {})
+        
+        with self.driver.session() as session:
+            try:
+                # Create single node for this ticker/year with all metrics as properties
+                node_id = f"{self.ticker}_{self.year}"
+                
+                # Build dynamic SET clause for all metrics
+                set_clauses = []
+                params = {
+                    "node_id": node_id,
+                    "ticker": self.ticker,
+                    "year": self.year
+                }
+                
+                for metric_name, metric_value in metrics.items():
+                    # Convert metric name to valid property name (replace spaces/special chars)
+                    prop_name = metric_name.replace(" ", "_").replace("-", "_").replace("%", "Percent")
+                    set_clauses.append(f"m.{prop_name} = ${prop_name}")
+                    params[prop_name] = metric_value
+                
+                set_clause = ",\n                        ".join(set_clauses)
+                
+                query = f"""
+                MERGE (m:FinancialMetrics {{id: $node_id}})
+                SET m.ticker = $ticker,
+                    m.year = $year,
+                    m.createdAt = CASE WHEN m.createdAt IS NULL THEN datetime() ELSE m.createdAt END,
+                    m.updatedAt = datetime(),
+                    {set_clause}
+                RETURN m
+                """
+                
+                result = session.run(query, **params)
+                record = result.single()
+                
+                if record:
+                    # Create relationship between Company and SpecialMetrics node
+                    relationship_query = """
+                    MATCH (c:Company {ticker: $ticker})
+                    MATCH (m:FinancialMetrics {id: $node_id})
+                    MERGE (c)-[r:HAS_FINANCIAL_METRICS]->(m)
+                    SET r.createdAt = CASE WHEN r.createdAt IS NULL THEN datetime() ELSE r.createdAt END,
+                        r.updatedAt = datetime()
+                    RETURN count(r) as relationships_created
+                    """
+                    
+                    result = session.run(relationship_query, ticker=self.ticker, node_id=node_id)
+                    record = result.single()
+                    relationships_created = record["relationships_created"] if record else 0
+                    
+                    print(f"✓ Created 1 FinancialMetrics node with {len(metrics)} metrics and {relationships_created} HAS_FINANCIAL_METRICS relationship")
+                    
+                    return {
+                        "success": True,
+                        "nodes_created": 1,
+                        "metrics_processed": len(metrics),
+                        "created_nodes": [{"node_id": node_id, "metrics_count": len(metrics)}]
+                    }
+                else:
+                    print("✗ Failed to create SpecialMetrics node")
+                    return {
+                        "success": False,
+                        "nodes_created": 0,
+                        "metrics_processed": 0,
+                        "created_nodes": []
+                    }
+                    
+            except Exception as e:
+                print(f"Error creating SpecialMetrics node: {e}")
+                return {
+                    "success": False,
+                    "nodes_created": 0,
+                    "metrics_processed": 0,
+                    "created_nodes": []
+                }
+
+
+
+
+    def create_tenk_direct_node(self, tenk_direct_properties: dict):
+        """
+        Create TenK_Direct nodes in Neo4j from extracted properties data.
+        
+        Args:
+            tenk_direct_properties: Dictionary with property name-value pairs
+            
+        Returns:
+            dict: Result information about created nodes
+        """
+        print("Creating TenK_Direct node in Neo4j...")
+        
+        with self.driver.session() as session:
+            try:
+                # Create single node for this ticker/year with all properties
+                node_id = f"{self.ticker}_{self.year}_direct"
+                
+                # Build dynamic SET clause for all properties
+                set_clauses = []
+                params = {
+                    "node_id": node_id,
+                    "ticker": self.ticker,
+                    "year": self.year
+                }
+                
+                for prop_name, prop_value in tenk_direct_properties.items():
+                    # Convert property name to valid property name (replace spaces/special chars)
+                    clean_prop_name = prop_name.replace(" ", "_").replace("-", "_").replace("/", "_").replace("&", "and")
+                    set_clauses.append(f"m.{clean_prop_name} = ${clean_prop_name}")
+                    params[clean_prop_name] = prop_value
+                
+                set_clause = ",\n                        ".join(set_clauses) if set_clauses else ""
+                
+                query = f"""
+                MERGE (m:TenK_Direct {{id: $node_id}})
+                SET m.ticker = $ticker,
+                    m.year = $year,
+                    m.createdAt = CASE WHEN m.createdAt IS NULL THEN datetime() ELSE m.createdAt END,
+                    m.updatedAt = datetime()
+                    {', ' + set_clause if set_clause else ''}
+                RETURN m
+                """
+                
+                result = session.run(query, **params)
+                record = result.single()
+                
+                if record:
+                    # Create relationship between Company and TenK_Direct node
+                    relationship_query = """
+                    MATCH (c:Company {ticker: $ticker})
+                    MATCH (m:TenK_Direct {id: $node_id})
+                    MERGE (c)-[r:HAS_TENK_DIRECT]->(m)
+                    SET r.createdAt = CASE WHEN r.createdAt IS NULL THEN datetime() ELSE r.createdAt END,
+                        r.updatedAt = datetime()
+                    RETURN count(r) as relationships_created
+                    """
+                    
+                    result = session.run(relationship_query, ticker=self.ticker, node_id=node_id)
+                    record = result.single()
+                    relationships_created = record["relationships_created"] if record else 0
+                    
+                    print(f"✓ Created 1 TenK_Direct node with {len(tenk_direct_properties)} properties and {relationships_created} HAS_TENK_DIRECT relationship")
+                    
+                    return {
+                        "success": True,
+                        "nodes_created": 1,
+                        "properties_processed": len(tenk_direct_properties),
+                        "created_nodes": [{"node_id": node_id, "properties_count": len(tenk_direct_properties)}]
+                    }
+                else:
+                    print("✗ Failed to create TenK_Direct node")
+                    return {
+                        "success": False,
+                        "nodes_created": 0,
+                        "properties_processed": 0,
+                        "created_nodes": []
+                    }
+                    
+            except Exception as e:
+                print(f"Error creating TenK_Direct node: {e}")
+                return {
+                    "success": False,
+                    "nodes_created": 0,
+                    "properties_processed": 0,
+                    "created_nodes": []
+                }
+
+
+
+
+# @traceable(name="unstructured.tenK_data_injestor", metadata={"component": "data_ingestor"})
+async def tenK_data_injestor(ticker=None, start_year=2011, end_year=2025):
+
+    # Process ticker with year range
+    if ticker:
+        return await _process_ticker_year_range(ticker, start_year, end_year)
+    
+    # Neither provided
+    response = {
+        "status": "error",
+        "message": "ticker must be provided.",
+        "error": "Missing input",
+        "http_status": 400
+    }
+    return response
+
+
+@app.post("/process-tenk")
+async def process_tenk_endpoint(request: TenKRequest):
+    """
+    Endpoint to process 10-K data for a given ticker and year range.
+    
+    Request body:
+    {
+        "ticker": "AAPL",
+        "start_year": 2020,
+        "end_year": 2023
+    }
+    """
+    try:
+        # Validate input
+        if not re.match(r"^[A-Z]+$", request.ticker):
+            raise HTTPException(status_code=400, detail="Invalid ticker. Must contain only uppercase letters.")
+        
+        if not (1900 <= request.start_year <= 2100 and 1900 <= request.end_year <= 2100):
+            raise HTTPException(status_code=400, detail="Invalid year range. Years must be between 1900-2100.")
+        
+        if request.start_year > request.end_year:
+            raise HTTPException(status_code=400, detail="Start year cannot be greater than end year.")
+        
+        # Call the processing function
+        result = await tenK_data_injestor(
+            ticker=request.ticker,
+            start_year=request.start_year,
+            end_year=request.end_year
+        )
+        
+        # Return the result with appropriate status code
+        status_code = result.get("http_status", 200)
+        if status_code >= 400:
+            raise HTTPException(status_code=status_code, detail=result)
+        
+        return result
+    
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
+
+
+
+async def _process_ticker_year_range(ticker, start_year, end_year):
+    """Process 10-K data for a ticker across a year range by downloading from SEC and extracting metrics to JSON."""
+    response = {
+        "status": "success",
+        "message": "",
+        "error": None,
+        "http_status": 200,
+        "processed_years": [],
+        "failed_years": [],
+        "metrics_info": []
+    }
+
+    # Create run-specific folder for JSON files
+    run_folder = create_run_folder()
+
+    # Validate ticker
+    if not re.match(r"^[A-Z]+$", ticker):
+        response["status"] = "error"
+        response["message"] = f"Invalid ticker '{ticker}'. Must contain only uppercase letters."
+        response["error"] = "Invalid ticker format"
+        response["http_status"] = 400
+        return response
+
+    # Validate year range
+    if not (1900 <= start_year <= 2100 and 1900 <= end_year <= 2100):
+        response["status"] = "error"
+        response["message"] = f"Invalid year range {start_year}-{end_year}. Years must be between 1900-2100."
+        response["error"] = "Invalid year range"
+        response["http_status"] = 400
+        return response
+
+    if start_year > end_year:
+        response["status"] = "error"
+        response["message"] = f"Start year {start_year} cannot be greater than end year {end_year}."
+        response["error"] = "Invalid year range"
+        response["http_status"] = 400
+        return response
+
+    extractor = MetricExtractor()
+
+    for year in range(start_year, end_year + 1):
+        try:
+            print(f"\n📅 Processing {ticker} {year}...")
+
+            # Download and preprocess 10-K
+            html_file = extractor.download_10k_html(ticker, str(year))
+            cleaned_text = extractor.preprocess_text(html_file)
+
+            # Extract metrics in one LLM call
+            print(f"📊 Extracting combined data for {ticker} {year}...")
+            combined_result = extractor.extract_combined_data(cleaned_text)
+
+            # Parse the results
+            metrics_data = {"metrics": combined_result["data"]["metrics"]}
+
+            # Save metrics JSON
+            metrics_file = f"{run_folder}/{ticker}_{year}_metrics.json"
+            with open(metrics_file, "w") as f:
+                json.dump(metrics_data, f, indent=4)
+
+            print(f"✓ {ticker} {year} data extracted successfully")
+            print(f"   Metrics: {len(metrics_data['metrics'])} | Cost: ${combined_result['cost_info']['total_cost_usd']:.6f}")
+
+            response["processed_years"].append({
+                "year": year,
+                "status": "success",
+                "metrics_file": metrics_file,
+                "metrics_count": len(metrics_data["metrics"]),
+                "extraction_cost": combined_result["cost_info"]["total_cost_usd"]
+            })
+
+            response["metrics_info"].append({
+                "year": year,
+                "json_file": metrics_file,
+                "metrics_count": len(metrics_data["metrics"]),
+                "extraction_cost": combined_result["cost_info"]["total_cost_usd"],
+                "backend": combined_result["cost_info"]["backend"]
+            })
+
+            # Clean up downloaded file
+            if os.path.exists(html_file):
+                os.remove(html_file)
+
+        except Exception as e:
+            print(f"✗ Failed to process {ticker} {year}: {str(e)}")
+            response["failed_years"].append({"year": year, "error": str(e)})
+            continue
+
+    response["message"] = f"Processed {len(response['processed_years'])} years for {ticker} ({start_year}-{end_year}) with metrics extraction"
+
+    if response["failed_years"]:
+        response["message"] += f", {len(response['failed_years'])} failed"
+        if not response["processed_years"]:
+            response["status"] = "error"
+            response["http_status"] = 500
+
+    return response
+    
+
+
+
+###################
+###################
+
+
+
+if __name__ == "__main__":
+    # Run the FastAPI server
+    uvicorn.run(app, host="0.0.0.0", port=8000)

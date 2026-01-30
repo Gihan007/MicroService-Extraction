@@ -1,0 +1,23 @@
+{
+    "metrics": {
+        "Depreciation": 971703,
+        "DepreciationAndAmortization": 963800,
+        "OperatingLeaseCost": 1890000,
+        "VariableLeaseCost": 390000,
+        "StockBasedCompensation": 58738,
+        "OperatingLeaseAssets": 11163763,
+        "OperatingLeaseLiabilities": 9764783,
+        "OperatingLeaseNewAssetsObtained": null,
+        "OperatingLeaseDiscountRate": 4.5,
+        "FinanceLeaseAssets": null,
+        "FinanceLeaseLiabilities": null,
+        "FinanceLeaseNewAssetsObtained": null,
+        "FinanceLeaseDiscountRate": null,
+        "FinanceLeaseTerm": null,
+        "Goodwill": 4338589,
+        "DeferredTaxAssets": 2966443,
+        "DeferredTaxLiabilities": 4069881,
+        "InterestExpense": 274320,
+        "InterestIncome": null
+    }
+}

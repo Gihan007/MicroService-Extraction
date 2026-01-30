@@ -1,0 +1,5 @@
+{
+    "metrics": {
+        "error": "'Config' object has no attribute 'OPENAI_API_KEY'"
+    }
+}
